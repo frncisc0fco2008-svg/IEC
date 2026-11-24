@@ -1,0 +1,1313 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ejercicio 06 — Modelo Logístico de Población (Modo Expositor)</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts: Inter & Space Grotesk -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@600;700&display=swap" rel="stylesheet">
+    
+    <!-- KaTeX para renderizado matemático impecable -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+
+    <!-- Chart.js y plugin de anotaciones para la gráfica interactiva -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-annotation@3.0.1/dist/chartjs-plugin-annotation.min.js"></script>
+
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+
+    <style>
+        :root {
+            --bg-deep: #040812;
+            --neon-cyan: #00f5d4;
+            --neon-violet: #8b5cf6;
+            --neon-amber: #f59e0b;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-deep);
+            color: #f8fafc;
+            overflow-x: hidden;
+            margin: 0;
+            padding: 0;
+            user-select: none;
+        }
+
+        h1, h2, h3, .font-display {
+            font-family: 'Space Grotesk', sans-serif;
+        }
+
+        /* Canvas 2D de Partículas Bioluminiscentes */
+        #bioCanvas {
+            position: fixed;
+            inset: 0;
+            width: 100vw;
+            height: 100vh;
+            z-index: 0;
+            pointer-events: none;
+        }
+
+        /* Orbes ambientales con parallax */
+        .ambient-orb {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(130px);
+            z-index: 0;
+            opacity: 0.4;
+            pointer-events: none;
+            transition: transform 0.35s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.8s ease;
+        }
+
+        /* Malla sutil de laboratorio */
+        .bg-grid {
+            background-size: 46px 46px;
+            background-image: 
+                linear-gradient(to right, rgba(0, 245, 212, 0.03) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(139, 92, 246, 0.03) 1px, transparent 1px);
+        }
+
+        /* Panel principal Glassmorphism */
+        .glass-panel {
+            background: rgba(10, 16, 32, 0.74);
+            backdrop-filter: blur(22px);
+            -webkit-backdrop-filter: blur(22px);
+            border: 1px solid rgba(0, 245, 212, 0.22);
+            box-shadow: 0 30px 60px -15px rgba(0, 0, 0, 0.85), inset 0 1px 0 0 rgba(255, 255, 255, 0.1);
+        }
+
+        /* Tarjetas internas con Tilt 3D y rastreo luminoso */
+        .tilt-card {
+            position: relative;
+            background: rgba(16, 25, 48, 0.6);
+            border: 1px solid rgba(148, 163, 184, 0.16);
+            transform-style: preserve-3d;
+            transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1), border-color 0.3s ease, box-shadow 0.3s ease;
+            overflow: hidden;
+        }
+
+        .tilt-card::before {
+            content: "";
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            background: radial-gradient(420px circle at var(--mouse-x, 50%) var(--mouse-y, 50%), rgba(0, 245, 212, 0.16), transparent 45%);
+            opacity: 0;
+            transition: opacity 0.3s ease;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .tilt-card:hover::before {
+            opacity: 1;
+        }
+
+        .tilt-card:hover {
+            border-color: rgba(0, 245, 212, 0.45);
+        }
+
+        /* Gradiente animado para títulos */
+        .text-gradient-animated {
+            background: linear-gradient(90deg, #00f5d4, #8b5cf6, #f59e0b, #00f5d4);
+            background-size: 300% 100%;
+            -webkit-background-clip: text;
+            background-clip: text;
+            color: transparent;
+            animation: gradientFlow 6s linear infinite;
+        }
+
+        @keyframes gradientFlow {
+            0% { background-position: 0% 50%; }
+            100% { background-position: 300% 50%; }
+        }
+
+        /* Pulso de energía en ecuación principal */
+        .formula-energy-box {
+            animation: energyPulse 3.5s ease-in-out infinite;
+        }
+
+        @keyframes energyPulse {
+            0%, 100% {
+                box-shadow: 0 0 20px rgba(0, 245, 212, 0.12), inset 0 0 12px rgba(0, 245, 212, 0.08);
+                border-color: rgba(0, 245, 212, 0.35);
+            }
+            50% {
+                box-shadow: 0 0 38px rgba(0, 245, 212, 0.3), inset 0 0 20px rgba(139, 92, 246, 0.18);
+                border-color: rgba(0, 245, 212, 0.75);
+            }
+        }
+
+        /* Barra de progreso neón */
+        .progress-glow {
+            box-shadow: 0 0 14px #00f5d4, 0 0 28px #8b5cf6;
+            position: relative;
+        }
+
+        .progress-glow::after {
+            content: "";
+            position: absolute;
+            right: -4px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #ffffff;
+            box-shadow: 0 0 12px #00f5d4, 0 0 22px #00f5d4;
+        }
+
+        /* Transiciones 3D Cinematográficas entre Diapositivas */
+        .slides-viewport {
+            perspective: 1400px;
+            min-height: calc(100vh - 132px);
+            position: relative;
+        }
+
+        .slide {
+            display: none;
+            opacity: 0;
+            transform-style: preserve-3d;
+        }
+
+        .slide.active {
+            display: block;
+            animation: cinematicEnterNext 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        }
+
+        .slide.active-prev {
+            display: block;
+            animation: cinematicEnterPrev 0.7s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+        }
+
+        @keyframes cinematicEnterNext {
+            0% {
+                opacity: 0;
+                transform: translateX(85px) translateZ(-110px) rotateY(-9deg) scale(0.95);
+                filter: blur(8px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateX(0) translateZ(0) rotateY(0deg) scale(1);
+                filter: blur(0);
+            }
+        }
+
+        @keyframes cinematicEnterPrev {
+            0% {
+                opacity: 0;
+                transform: translateX(-85px) translateZ(-110px) rotateY(9deg) scale(0.95);
+                filter: blur(8px);
+            }
+            100% {
+                opacity: 1;
+                transform: translateX(0) translateZ(0) rotateY(0deg) scale(1);
+                filter: blur(0);
+            }
+        }
+
+        /* Sistema de Pasos Ocultos para Expositor (.presenter-step) */
+        .presenter-step {
+            opacity: 0;
+            visibility: hidden;
+            transform: translateY(18px) scale(0.97);
+            transition: opacity 0.48s cubic-bezier(0.22, 1, 0.36, 1),
+                        transform 0.48s cubic-bezier(0.22, 1, 0.36, 1),
+                        visibility 0.48s;
+            pointer-events: none;
+        }
+
+        .presenter-step.is-revealed {
+            opacity: 1;
+            visibility: visible;
+            transform: translateY(0) scale(1);
+            pointer-events: auto;
+            animation: stepFlash 0.85s ease-out;
+        }
+
+        .presenter-step.final-gold.is-revealed {
+            border-color: rgba(245, 158, 11, 0.7);
+            box-shadow: 0 0 28px rgba(245, 158, 11, 0.2), inset 0 0 16px rgba(0, 245, 212, 0.12);
+            animation: goldStepFlash 1s ease-out;
+        }
+
+        @keyframes stepFlash {
+            0% {
+                background-color: rgba(0, 245, 212, 0.32);
+                box-shadow: 0 0 28px rgba(0, 245, 212, 0.48);
+                border-color: rgba(0, 245, 212, 0.85);
+            }
+            100% {
+                background-color: rgba(16, 25, 48, 0.6);
+                box-shadow: 0 0 15px rgba(0, 245, 212, 0.08);
+            }
+        }
+
+        @keyframes goldStepFlash {
+            0% {
+                background-color: rgba(245, 158, 11, 0.42);
+                transform: scale(1.025);
+            }
+            100% {
+                background-color: rgba(245, 158, 11, 0.12);
+                transform: scale(1);
+            }
+        }
+
+        /* Botones interactivos */
+        .btn-magnetic {
+            transition: transform 0.18s cubic-bezier(0.22, 1, 0.36, 1), box-shadow 0.2s ease, filter 0.2s ease;
+        }
+        .btn-magnetic:active {
+            transform: scale(0.95);
+        }
+
+        /* Estilo personalizado del Slider */
+        input[type=range] {
+            -webkit-appearance: none;
+            background: transparent;
+        }
+
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 22px;
+            width: 22px;
+            border-radius: 50%;
+            background: #00f5d4;
+            border: 3px solid #ffffff;
+            box-shadow: 0 0 16px #00f5d4, 0 0 28px #8b5cf6;
+            cursor: pointer;
+            margin-top: -8px;
+            transition: transform 0.15s ease;
+        }
+
+        input[type=range]::-webkit-slider-thumb:hover {
+            transform: scale(1.22);
+        }
+
+        input[type=range]::-webkit-slider-runnable-track {
+            width: 100%;
+            height: 6px;
+            cursor: pointer;
+            background: linear-gradient(90deg, #00f5d4 0%, #8b5cf6 60%, #f59e0b 100%);
+            border-radius: 999px;
+        }
+
+        /* Ajustes KaTeX */
+        .katex { font-size: 1.15em; }
+        .katex-hero .katex { font-size: 1.7em; }
+        @media (max-width: 640px) {
+            .katex-hero .katex { font-size: 1.2em; }
+        }
+    </style>
+</head>
+<body class="bg-grid min-h-screen flex flex-col justify-between selection:bg-cyan-400/30 selection:text-cyan-200">
+
+    <!-- Fondo Vivo: Canvas 2D con Partículas Bioluminiscentes -->
+    <canvas id="bioCanvas"></canvas>
+
+    <!-- Orbes de luz bioluminiscente -->
+    <div id="orb-1" class="ambient-orb w-[28rem] h-[28rem] bg-[#00f5d4]/25 -top-24 -left-24"></div>
+    <div id="orb-2" class="ambient-orb w-[34rem] h-[34rem] bg-[#8b5cf6]/25 bottom-0 right-0"></div>
+    <div id="orb-3" class="ambient-orb w-80 h-80 bg-[#f59e0b]/15 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2"></div>
+
+    <!-- Barra Superior Minimalista -->
+    <header class="relative z-20 w-full border-b border-slate-800/80 bg-[#040812]/85 backdrop-blur-xl">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 py-2.5 flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-[#00f5d4] via-[#8b5cf6] to-[#f59e0b] p-[1.5px] shadow-lg shadow-cyan-500/20">
+                    <div class="w-full h-full bg-[#040812] rounded-[10px] flex items-center justify-center font-display font-bold text-[#00f5d4] text-sm">
+                        06
+                    </div>
+                </div>
+                <div>
+                    <div class="flex items-center gap-2">
+                        <span class="text-[11px] uppercase tracking-widest text-[#00f5d4] font-bold">Modo Expositor</span>
+                        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping"></span>
+                    </div>
+                    <h1 class="text-sm sm:text-base font-bold text-slate-100 leading-tight">Modelo Logístico de Población</h1>
+                </div>
+            </div>
+
+            <!-- Indicadores de diapositivas (Pills) + Pantalla Completa -->
+            <div class="flex items-center gap-2">
+                <nav aria-label="Diapositivas" class="hidden md:flex items-center gap-1.5" id="slidePills">
+                    <button onclick="goToSlide(0)" class="pill-btn px-2.5 py-1 rounded-lg text-xs font-bold transition-all bg-[#00f5d4]/20 text-[#00f5d4] border border-[#00f5d4]/50">1. Enunciado</button>
+                    <button onclick="goToSlide(1)" class="pill-btn px-2.5 py-1 rounded-lg text-xs font-medium transition-all text-slate-400 hover:text-slate-200 border border-transparent">2. Inciso a)</button>
+                    <button onclick="goToSlide(2)" class="pill-btn px-2.5 py-1 rounded-lg text-xs font-medium transition-all text-slate-400 hover:text-slate-200 border border-transparent">3. Inciso b)</button>
+                    <button onclick="goToSlide(3)" class="pill-btn px-2.5 py-1 rounded-lg text-xs font-medium transition-all text-slate-400 hover:text-slate-200 border border-transparent">4. Inciso c)</button>
+                    <button onclick="goToSlide(4)" class="pill-btn px-2.5 py-1 rounded-lg text-xs font-medium transition-all text-slate-400 hover:text-slate-200 border border-transparent">5. Cierre</button>
+                </nav>
+
+                <button onclick="toggleFullscreen()" title="Pantalla Completa" class="btn-magnetic p-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700/80 text-slate-300 hover:text-[#00f5d4]">
+                    <i data-lucide="maximize" class="w-4 h-4"></i>
+                </button>
+            </div>
+        </div>
+
+        <!-- Barra de progreso -->
+        <div class="w-full h-1.5 bg-slate-900/90 overflow-hidden">
+            <div id="progressBar" class="h-full bg-gradient-to-r from-[#00f5d4] via-[#8b5cf6] to-[#f59e0b] progress-glow transition-all duration-500 ease-out" style="width: 20%;"></div>
+        </div>
+    </header>
+
+    <!-- Área Principal de Diapositivas (Clic en fondo avanza paso) -->
+    <main id="stageArea" class="relative z-10 flex-grow flex items-center justify-center px-4 sm:px-6 py-5 cursor-pointer">
+        <div class="w-full max-w-6xl slides-viewport flex items-center">
+
+            <!-- ==========================================
+                 DIAPOSITIVA 1: PORTADA Y ENUNCIADO
+            =========================================== -->
+            <section id="slide-0" class="slide active w-full glass-panel rounded-3xl p-6 sm:p-10 md:p-12 cursor-default" data-total-steps="4">
+                <div class="flex flex-col lg:flex-row gap-8 items-center">
+                    <div class="flex-1 space-y-6">
+                        <div class="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#00f5d4]/10 border border-[#00f5d4]/40 text-[#00f5d4] text-xs font-bold tracking-widest uppercase">
+                            <i data-lucide="presentation" class="w-3.5 h-3.5 text-amber-400"></i>
+                            Ejercicio 06
+                        </div>
+
+                        <h2 class="text-3xl sm:text-4xl md:text-5xl font-bold tracking-tight text-white leading-tight">
+                            Ejercicio 06 — <span class="text-gradient-animated">Modelo Logístico de Población</span>
+                        </h2>
+
+                        <div class="tilt-card rounded-2xl p-5 sm:p-6 border-l-4 border-l-[#00f5d4]">
+                            <p class="text-slate-200 text-base sm:text-lg leading-relaxed">
+                                “La población de ciertas especies en un ambiente limitado con una población inicial de <strong class="text-[#00f5d4]">100</strong> y capacidad para <strong class="text-amber-400">1 000</strong> es:
+                            </p>
+                            <div class="my-4 py-4 px-3 rounded-xl bg-[#040812]/85 border border-[#00f5d4]/40 text-center katex-hero formula-energy-box overflow-x-auto">
+                                $$P(t) = \frac{100\,000}{100 + 900e^{-t}}$$
+                            </div>
+                            <p class="text-slate-400 text-sm text-right italic">donde $t$ se mide en años.”</p>
+                        </div>
+
+                        <!-- Paso 1: Datos Iniciales Puros -->
+                        <div class="presenter-step grid grid-cols-2 gap-4" data-step="1">
+                            <div class="tilt-card rounded-2xl p-4 flex items-center justify-between border-l-2 border-l-[#00f5d4]">
+                                <span class="text-xs font-bold uppercase tracking-wider text-[#00f5d4]">Inicial</span>
+                                <span class="text-xl sm:text-2xl font-display font-bold text-white">$P(0) = 100$</span>
+                            </div>
+                            <div class="tilt-card rounded-2xl p-4 flex items-center justify-between border-l-2 border-l-amber-400">
+                                <span class="text-xs font-bold uppercase tracking-wider text-amber-400">Capacidad</span>
+                                <span class="text-xl sm:text-2xl font-display font-bold text-white">$K = 1\,000$</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Columna Derecha: Los 3 Incisos Revelables Progresivamente -->
+                    <div class="w-full lg:w-96 flex flex-col gap-4">
+                        <!-- Paso 2: Inciso a -->
+                        <div class="presenter-step tilt-card rounded-2xl p-5 border-l-4 border-l-[#00f5d4]" data-step="2">
+                            <span class="text-xs font-bold uppercase tracking-widest text-[#00f5d4] block mb-1.5">Inciso a)</span>
+                            <p class="text-sm text-slate-200 leading-relaxed">
+                                Grafique esta función y estime cuánto tiempo le toma a la población llegar a $900$.
+                            </p>
+                        </div>
+
+                        <!-- Paso 3: Inciso b -->
+                        <div class="presenter-step tilt-card rounded-2xl p-5 border-l-4 border-l-[#8b5cf6]" data-step="3">
+                            <span class="text-xs font-bold uppercase tracking-widest text-[#8b5cf6] block mb-1.5">Inciso b)</span>
+                            <p class="text-sm text-slate-200 leading-relaxed">
+                                Encuentre la inversa de esta función y explique su significado.
+                            </p>
+                        </div>
+
+                        <!-- Paso 4: Inciso c -->
+                        <div class="presenter-step tilt-card rounded-2xl p-5 border-l-4 border-l-amber-400" data-step="4">
+                            <span class="text-xs font-bold uppercase tracking-widest text-amber-400 block mb-1.5">Inciso c)</span>
+                            <p class="text-sm text-slate-200 leading-relaxed">
+                                Utilice la función inversa para encontrar el tiempo necesario para que la población llegue a $900$. Compare con el resultado del inciso a).
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ==========================================
+                 DIAPOSITIVA 2: INCISO A) GRÁFICA INTERACTIVA
+            =========================================== -->
+            <section id="slide-1" class="slide w-full glass-panel rounded-3xl p-6 sm:p-8 md:p-10 cursor-default" data-total-steps="3">
+                <div class="mb-5 border-b border-slate-800 pb-4 flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <span class="text-xs font-bold uppercase tracking-widest text-[#00f5d4]">Inciso a) Gráfica</span>
+                        <h2 class="text-lg sm:text-xl font-bold text-white mt-1">
+                            “Grafique esta función y estime cuánto tiempo le toma a la población llegar a 900.”
+                        </h2>
+                    </div>
+
+                    <!-- Controles interactivos de la gráfica -->
+                    <div class="flex flex-wrap items-center gap-2 shrink-0">
+                        <button id="autoSimBtn" onclick="toggleAutoSimulation()" class="btn-magnetic px-4 py-2 rounded-xl bg-gradient-to-r from-[#8b5cf6] to-indigo-500 hover:brightness-110 text-white text-xs font-bold shadow-lg shadow-[#8b5cf6]/30 flex items-center gap-2">
+                            <i data-lucide="play" class="w-3.5 h-3.5"></i>
+                            <span>Simular Crecimiento</span>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                    <!-- Columna Izquierda: Lienzo Chart.js + Slider -->
+                    <div class="lg:col-span-8 tilt-card rounded-2xl p-4 sm:p-5 flex flex-col gap-4">
+                        <div class="relative w-full h-64 sm:h-80">
+                            <canvas id="populationChart"></canvas>
+                        </div>
+
+                        <!-- Slider de exploración de t -->
+                        <div class="bg-[#040812]/80 rounded-xl p-3.5 border border-slate-800">
+                            <div class="flex flex-wrap items-center justify-between gap-2 mb-2.5">
+                                <span class="text-xs font-bold uppercase tracking-wider text-slate-400 font-mono">Explorador $t$</span>
+                                <div class="flex items-center gap-2">
+                                    <span class="px-2.5 py-1 rounded-lg bg-[#00f5d4]/15 border border-[#00f5d4]/40 text-[#00f5d4] font-mono text-xs sm:text-sm font-bold" id="sliderTimeDisplay">
+                                        t = 0.00 años
+                                    </span>
+                                    <span class="px-2.5 py-1 rounded-lg bg-amber-500/15 border border-amber-500/40 text-amber-300 font-mono text-xs sm:text-sm font-bold" id="sliderPopDisplay">
+                                        P(t) = 100.0
+                                    </span>
+                                </div>
+                            </div>
+                            <input type="range" id="timeSlider" min="0" max="10" step="0.02" value="0" class="w-full">
+                            <div class="flex justify-between text-[11px] text-slate-500 font-mono mt-1">
+                                <span>0</span>
+                                <span>2.5</span>
+                                <span>5.0</span>
+                                <span>7.5</span>
+                                <span>10</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Columna Derecha: Etiquetas Visuales de cada capa revelada -->
+                    <div class="lg:col-span-4 flex flex-col gap-3.5">
+                        <!-- Capa 1 -->
+                        <div class="presenter-step tilt-card rounded-2xl p-4 border-l-4 border-l-[#8b5cf6]" data-step="1">
+                            <span class="text-xs font-bold uppercase tracking-wider text-[#8b5cf6] block mb-2">Capa 1 • Referencias</span>
+                            <div class="space-y-2 font-mono text-sm">
+                                <div class="flex justify-between items-center bg-[#040812]/70 px-3 py-1.5 rounded-lg">
+                                    <span class="text-slate-400">Inicio</span>
+                                    <span class="text-[#00f5d4] font-bold">$(0,\; 100)$</span>
+                                </div>
+                                <div class="flex justify-between items-center bg-[#040812]/70 px-3 py-1.5 rounded-lg">
+                                    <span class="text-slate-400">Asíntota</span>
+                                    <span class="text-violet-300 font-bold">$P = 1000$</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Capa 2 -->
+                        <div class="presenter-step tilt-card rounded-2xl p-4 border-l-4 border-l-[#00f5d4]" data-step="2">
+                            <span class="text-xs font-bold uppercase tracking-wider text-[#00f5d4] block mb-2">Capa 2 • Curva</span>
+                            <div class="bg-[#040812]/70 px-3 py-2 rounded-lg text-center">
+                                $$P(t) = \frac{100\,000}{100 + 900e^{-t}}$$
+                            </div>
+                        </div>
+
+                        <!-- Capa 3 -->
+                        <div class="presenter-step final-gold tilt-card rounded-2xl p-4 border-l-4 border-l-amber-400 bg-amber-950/15" data-step="3">
+                            <span class="text-xs font-bold uppercase tracking-wider text-amber-400 block mb-2">Capa 3 • Estimación</span>
+                            <div class="space-y-2 font-mono text-sm">
+                                <div class="flex justify-between items-center bg-[#040812]/80 px-3 py-1.5 rounded-lg">
+                                    <span class="text-slate-400">Meta</span>
+                                    <span class="text-amber-300 font-bold">$P = 900$</span>
+                                </div>
+                                <div class="flex justify-between items-center bg-[#040812]/80 px-3 py-2 rounded-lg border border-amber-400/40">
+                                    <span class="text-slate-300">Cruce</span>
+                                    <span class="text-white font-bold text-base">$t \approx 4.394\text{ años}$</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ==========================================
+                 DIAPOSITIVA 3: INCISO B) FUNCIÓN INVERSA (7 PASOS PUROS)
+            =========================================== -->
+            <section id="slide-2" class="slide w-full glass-panel rounded-3xl p-6 sm:p-8 md:p-10 cursor-default" data-total-steps="7">
+                <div class="mb-5 border-b border-slate-800 pb-4">
+                    <span class="text-xs font-bold uppercase tracking-widest text-[#8b5cf6]">Inciso b) Inversa</span>
+                    <h2 class="text-lg sm:text-xl font-bold text-white mt-1">
+                        “Encuentre la inversa de esta función y explique su significado.”
+                    </h2>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
+                    <!-- Columna Izquierda: 6 Pasos Algebraicos Puros -->
+                    <div class="lg:col-span-8 grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <!-- Paso 1 -->
+                        <div class="presenter-step tilt-card rounded-xl p-4 flex flex-col justify-between" data-step="1">
+                            <span class="text-xs font-bold uppercase tracking-wider text-[#00f5d4] mb-2">Paso 1</span>
+                            <div class="bg-[#040812]/85 py-2.5 px-3 rounded-lg border border-slate-800 text-center overflow-x-auto">
+                                $$P = \frac{100\,000}{100 + 900e^{-t}}$$
+                            </div>
+                        </div>
+
+                        <!-- Paso 2 -->
+                        <div class="presenter-step tilt-card rounded-xl p-4 flex flex-col justify-between" data-step="2">
+                            <span class="text-xs font-bold uppercase tracking-wider text-[#00f5d4] mb-2">Paso 2</span>
+                            <div class="bg-[#040812]/85 py-2.5 px-3 rounded-lg border border-slate-800 text-center overflow-x-auto">
+                                $$100 + 900e^{-t} = \frac{100\,000}{P}$$
+                            </div>
+                        </div>
+
+                        <!-- Paso 3 -->
+                        <div class="presenter-step tilt-card rounded-xl p-4 flex flex-col justify-between" data-step="3">
+                            <span class="text-xs font-bold uppercase tracking-wider text-[#00f5d4] mb-2">Paso 3</span>
+                            <div class="bg-[#040812]/85 py-2.5 px-3 rounded-lg border border-slate-800 text-center overflow-x-auto">
+                                $$1 + 9e^{-t} = \frac{1000}{P}$$
+                            </div>
+                        </div>
+
+                        <!-- Paso 4 -->
+                        <div class="presenter-step tilt-card rounded-xl p-4 flex flex-col justify-between" data-step="4">
+                            <span class="text-xs font-bold uppercase tracking-wider text-[#00f5d4] mb-2">Paso 4</span>
+                            <div class="bg-[#040812]/85 py-2.5 px-3 rounded-lg border border-slate-800 text-center overflow-x-auto">
+                                $$e^{-t} = \frac{1000 - P}{9P}$$
+                            </div>
+                        </div>
+
+                        <!-- Paso 5 -->
+                        <div class="presenter-step tilt-card rounded-xl p-4 flex flex-col justify-between" data-step="5">
+                            <span class="text-xs font-bold uppercase tracking-wider text-[#8b5cf6] mb-2">Paso 5</span>
+                            <div class="bg-[#040812]/85 py-2.5 px-3 rounded-lg border border-slate-800 text-center overflow-x-auto">
+                                $$t = -\ln\left(\frac{1000 - P}{9P}\right)$$
+                            </div>
+                        </div>
+
+                        <!-- Paso 6 (Resultado Inversa) -->
+                        <div class="presenter-step final-gold tilt-card rounded-xl p-4 flex flex-col justify-between bg-amber-950/15" data-step="6">
+                            <span class="text-xs font-bold uppercase tracking-wider text-amber-400 mb-2">Paso 6 • Inversa</span>
+                            <div class="bg-[#040812]/95 py-2.5 px-3 rounded-lg border border-amber-400/50 text-center overflow-x-auto">
+                                $$P^{-1}(P) = \ln\left(\frac{9P}{1000 - P}\right)$$
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Columna Derecha: Paso 7 (Diagrama de Mapeo y Dominio Puro) -->
+                    <div class="lg:col-span-4">
+                        <div class="presenter-step tilt-card rounded-2xl p-5 border-t-4 border-t-[#8b5cf6] space-y-4" data-step="7">
+                            <span class="text-xs font-bold uppercase tracking-wider text-[#8b5cf6] block">Paso 7 • Mapeo y Dominio</span>
+                            
+                            <div class="bg-[#040812]/85 p-4 rounded-xl border border-slate-800 flex items-center justify-around font-mono">
+                                <div class="text-center">
+                                    <span class="text-[11px] text-slate-400 block">ENTRADA</span>
+                                    <span class="text-xl font-bold text-[#00f5d4]">$P$</span>
+                                </div>
+                                <i data-lucide="arrow-right" class="w-5 h-5 text-amber-400"></i>
+                                <div class="text-center">
+                                    <span class="text-[11px] text-slate-400 block">SALIDA</span>
+                                    <span class="text-xl font-bold text-amber-300">$t$ (años)</span>
+                                </div>
+                            </div>
+
+                            <div class="bg-[#040812]/85 p-3.5 rounded-xl border border-slate-800 text-center">
+                                <span class="text-[11px] uppercase tracking-wider text-slate-400 block mb-1">Dominio</span>
+                                <div class="text-base text-violet-300 font-bold">
+                                    $$100 \le P < 1000$$
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ==========================================
+                 DIAPOSITIVA 4: INCISO C) CÁLCULO EXACTO Y COMPARACIÓN
+            =========================================== -->
+            <section id="slide-3" class="slide w-full glass-panel rounded-3xl p-6 sm:p-8 md:p-10 cursor-default" data-total-steps="4">
+                <div class="mb-5 border-b border-slate-800 pb-4">
+                    <span class="text-xs font-bold uppercase tracking-widest text-amber-400">Inciso c) Evaluación y Comparación</span>
+                    <h2 class="text-lg sm:text-xl font-bold text-white mt-1">
+                        “Utilice la función inversa para encontrar el tiempo necesario para que la población llegue a 900. Compare con el resultado del inciso a).”
+                    </h2>
+                </div>
+
+                <div class="grid grid-cols-1 lg:grid-cols-12 gap-6 items-stretch">
+                    <!-- Izquierda: 3 Pasos de Evaluación -->
+                    <div class="lg:col-span-7 space-y-3.5">
+                        <!-- Paso 1 -->
+                        <div class="presenter-step tilt-card rounded-2xl p-4 flex items-center justify-between gap-4" data-step="1">
+                            <span class="text-xs font-bold uppercase tracking-wider text-[#00f5d4] shrink-0">Paso 1 • Sustitución</span>
+                            <div class="bg-[#040812]/85 px-4 py-2 rounded-xl border border-slate-800 overflow-x-auto">
+                                $$P^{-1}(900) = \ln\left(\frac{9(900)}{1000 - 900}\right)$$
+                            </div>
+                        </div>
+
+                        <!-- Paso 2 -->
+                        <div class="presenter-step tilt-card rounded-2xl p-4 flex items-center justify-between gap-4" data-step="2">
+                            <span class="text-xs font-bold uppercase tracking-wider text-[#8b5cf6] shrink-0">Paso 2 • Simplificación</span>
+                            <div class="bg-[#040812]/85 px-4 py-2 rounded-xl border border-slate-800 overflow-x-auto">
+                                $$P^{-1}(900) = \ln\left(\frac{8100}{100}\right) = \ln(81)$$
+                            </div>
+                        </div>
+
+                        <!-- Paso 3 -->
+                        <div class="presenter-step final-gold tilt-card rounded-2xl p-5 flex flex-col sm:flex-row items-center justify-between gap-4 bg-amber-950/15" data-step="3">
+                            <span class="text-xs font-bold uppercase tracking-wider text-amber-400">Paso 3 • Resultado Exacto</span>
+                            <div class="text-2xl sm:text-3xl font-display font-bold text-white">
+                                $$t = \ln(81) \approx 4.3944\text{ años}$$
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Derecha: Paso 4 (Tarjeta Visual Comparativa) -->
+                    <div class="lg:col-span-5">
+                        <div class="presenter-step tilt-card rounded-2xl p-6 h-full flex flex-col justify-between border-t-4 border-t-amber-400 space-y-4" data-step="4">
+                            <span class="text-xs font-bold uppercase tracking-wider text-amber-400 block">Paso 4 • Comparación</span>
+
+                            <div class="space-y-3">
+                                <div class="p-3.5 rounded-xl bg-[#040812]/85 border border-slate-800 flex items-center justify-between">
+                                    <span class="text-xs font-bold uppercase text-[#00f5d4]">Inciso a) Gráfica</span>
+                                    <span class="font-mono font-bold text-white text-base">$\approx 4.39\text{ años}$</span>
+                                </div>
+
+                                <div class="p-3.5 rounded-xl bg-[#040812]/85 border border-amber-500/40 flex items-center justify-between">
+                                    <span class="text-xs font-bold uppercase text-amber-300">Inciso c) Inversa</span>
+                                    <span class="font-mono font-bold text-white text-base">$\ln(81) \approx 4.3944\text{ años}$</span>
+                                </div>
+                            </div>
+
+                            <div class="p-3.5 rounded-xl bg-[#8b5cf6]/15 border border-[#8b5cf6]/40 flex items-center justify-between font-mono text-xs sm:text-sm">
+                                <span class="text-violet-300 font-bold">Diferencia $|\Delta t|$</span>
+                                <span class="text-white font-bold">$0.0044\text{ años}\; (0.10\%)$</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- ==========================================
+                 DIAPOSITIVA 5: CIERRE / RESUMEN VISUAL
+            =========================================== -->
+            <section id="slide-4" class="slide w-full glass-panel rounded-3xl p-6 sm:p-10 text-center cursor-default" data-total-steps="3">
+                <div class="max-w-3xl mx-auto mb-8">
+                    <span class="inline-flex items-center gap-2 px-4 py-1 rounded-full bg-amber-500/15 border border-amber-500/40 text-amber-300 text-xs font-bold uppercase tracking-widest mb-3">
+                        Ejercicio 06
+                    </span>
+                    <h2 class="text-3xl sm:text-4xl font-bold text-white">Síntesis de Resultados</h2>
+                    <div class="mt-3 text-slate-300">
+                        $$P(t) = \frac{100\,000}{100 + 900e^{-t}}$$
+                    </div>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-5 text-left">
+                    <!-- Tarjeta A -->
+                    <div class="presenter-step tilt-card rounded-2xl p-6 border-t-4 border-t-[#00f5d4] flex flex-col justify-between" data-step="1">
+                        <span class="text-xs font-bold uppercase tracking-wider text-[#00f5d4] mb-3 block">Inciso a) Gráfica</span>
+                        <div class="bg-[#040812]/80 p-3 rounded-xl border border-slate-800 text-center mb-3">
+                            $$K = 1000 \quad|\quad P = 900$$
+                        </div>
+                        <div class="pt-3 border-t border-slate-800 font-display text-2xl font-bold text-[#00f5d4] text-center">
+                            $$t \approx 4.39\text{ años}$$
+                        </div>
+                    </div>
+
+                    <!-- Tarjeta B -->
+                    <div class="presenter-step tilt-card rounded-2xl p-6 border-t-4 border-t-[#8b5cf6] flex flex-col justify-between" data-step="2">
+                        <span class="text-xs font-bold uppercase tracking-wider text-[#8b5cf6] mb-3 block">Inciso b) Inversa</span>
+                        <div class="bg-[#040812]/80 p-3 rounded-xl border border-slate-800 text-center mb-3 text-xs text-slate-300">
+                            $$100 \le P < 1000$$
+                        </div>
+                        <div class="pt-3 border-t border-slate-800 text-base font-bold text-violet-300 text-center overflow-x-auto">
+                            $$P^{-1}(P) = \ln\left(\frac{9P}{1000 - P}\right)$$
+                        </div>
+                    </div>
+
+                    <!-- Tarjeta C -->
+                    <div class="presenter-step final-gold tilt-card rounded-2xl p-6 border-t-4 border-t-amber-400 flex flex-col justify-between" data-step="3">
+                        <span class="text-xs font-bold uppercase tracking-wider text-amber-400 mb-3 block">Inciso c) Exacto</span>
+                        <div class="bg-[#040812]/80 p-3 rounded-xl border border-slate-800 text-center mb-3">
+                            $$P^{-1}(900) = \ln(81)$$
+                        </div>
+                        <div class="pt-3 border-t border-slate-800 font-display text-2xl font-bold text-amber-300 text-center">
+                            $$t \approx 4.3944\text{ años}$$
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+        </div>
+    </main>
+
+    <!-- Barra Inferior de Controles del Expositor -->
+    <footer class="relative z-20 w-full border-t border-slate-800/80 bg-[#040812]/85 backdrop-blur-xl">
+        <div class="max-w-6xl mx-auto px-4 sm:px-6 py-2.5 flex flex-wrap items-center justify-between gap-3">
+            <!-- Retroceder -->
+            <button id="prevBtn" onclick="stepBackward()" disabled class="btn-magnetic inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 disabled:opacity-40 disabled:cursor-not-allowed hover:enabled:bg-slate-800 hover:enabled:text-white text-xs sm:text-sm font-medium">
+                <i data-lucide="chevron-left" class="w-4 h-4"></i>
+                <span>Anterior</span>
+            </button>
+
+            <!-- Estado de Diapositiva y Pasos Ocultos Restantes -->
+            <div class="flex items-center gap-3 text-xs sm:text-sm font-mono">
+                <span class="text-slate-400">
+                    Diapositiva <strong id="slideCounter" class="text-white">1/5</strong>
+                </span>
+                <span class="text-slate-700">|</span>
+                <span id="stepsBadge" class="px-2.5 py-1 rounded-lg bg-[#8b5cf6]/15 border border-[#8b5cf6]/40 text-violet-300 text-xs font-bold">
+                    Pasos ocultos: 4
+                </span>
+            </div>
+
+            <!-- Botón Principal: Siguiente Paso / Siguiente Diapositiva -->
+            <button id="nextBtn" onclick="stepForward()" class="btn-magnetic inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-gradient-to-r from-[#00f5d4] to-emerald-400 hover:brightness-110 text-[#040812] font-bold text-xs sm:text-sm shadow-md shadow-[#00f5d4]/25">
+                <span id="nextBtnLabel">Siguiente Paso</span>
+                <i data-lucide="chevron-right" class="w-4 h-4"></i>
+            </button>
+        </div>
+    </footer>
+
+    <script>
+        // ==========================================
+        // 1. FONDO VIVO DE PARTÍCULAS BIOLUMINISCENTES (CANVAS 2D)
+        // ==========================================
+        const canvas = document.getElementById('bioCanvas');
+        const ctxBio = canvas.getContext('2d');
+        let particles = [];
+        let mouse = { x: null, y: null };
+
+        const slideThemes = [
+            { color: '#00f5d4', speed: 0.6 }, // 1. Enunciado
+            { color: '#10b981', speed: 0.85 }, // 2. Gráfica
+            { color: '#8b5cf6', speed: 0.7 }, // 3. Inversa
+            { color: '#f59e0b', speed: 0.8 }, // 4. Evaluación
+            { color: '#00f5d4', speed: 0.95 } // 5. Síntesis
+        ];
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        class BioParticle {
+            constructor() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.size = Math.random() * 2.3 + 0.8;
+                this.vx = (Math.random() - 0.5) * 0.8;
+                this.vy = (Math.random() - 0.5) * 0.8;
+                this.alpha = Math.random() * 0.5 + 0.2;
+            }
+            update(speedMult) {
+                this.x += this.vx * speedMult;
+                this.y += this.vy * speedMult;
+
+                if (this.x < 0 || this.x > canvas.width) this.vx *= -1;
+                if (this.y < 0 || this.y > canvas.height) this.vy *= -1;
+
+                if (mouse.x !== null && mouse.y !== null) {
+                    const dx = mouse.x - this.x;
+                    const dy = mouse.y - this.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < 140) {
+                        this.x -= (dx / dist) * 1.1;
+                        this.y -= (dy / dist) * 1.1;
+                    }
+                }
+            }
+            draw(themeColor) {
+                ctxBio.beginPath();
+                ctxBio.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+                ctxBio.fillStyle = themeColor;
+                ctxBio.globalAlpha = this.alpha;
+                ctxBio.shadowBlur = 10;
+                ctxBio.shadowColor = themeColor;
+                ctxBio.fill();
+                ctxBio.shadowBlur = 0;
+                ctxBio.globalAlpha = 1;
+            }
+        }
+
+        function initParticles() {
+            const count = Math.min(75, Math.floor((window.innerWidth * window.innerHeight) / 18000));
+            particles = Array.from({ length: count }, () => new BioParticle());
+        }
+        initParticles();
+
+        function animateBioBackground() {
+            ctxBio.clearRect(0, 0, canvas.width, canvas.height);
+            const theme = slideThemes[currentSlide] || slideThemes[0];
+
+            for (let i = 0; i < particles.length; i++) {
+                particles[i].update(theme.speed);
+                particles[i].draw(theme.color);
+
+                for (let j = i + 1; j < particles.length; j++) {
+                    const dx = particles[i].x - particles[j].x;
+                    const dy = particles[i].y - particles[j].y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    if (dist < 115) {
+                        ctxBio.beginPath();
+                        ctxBio.strokeStyle = theme.color;
+                        ctxBio.globalAlpha = (1 - dist / 115) * 0.16;
+                        ctxBio.lineWidth = 0.8;
+                        ctxBio.moveTo(particles[i].x, particles[i].y);
+                        ctxBio.lineTo(particles[j].x, particles[j].y);
+                        ctxBio.stroke();
+                        ctxBio.globalAlpha = 1;
+                    }
+                }
+            }
+            requestAnimationFrame(animateBioBackground);
+        }
+
+        // Parallax + Efecto Tilt 3D al pasar el ratón sobre tarjetas
+        document.addEventListener('mousemove', (e) => {
+            mouse.x = e.clientX;
+            mouse.y = e.clientY;
+
+            const nx = (e.clientX / window.innerWidth - 0.5) * 2;
+            const ny = (e.clientY / window.innerHeight - 0.5) * 2;
+
+            const orb1 = document.getElementById('orb-1');
+            const orb2 = document.getElementById('orb-2');
+            if (orb1) orb1.style.transform = `translate(${nx * 25}px, ${ny * 25}px)`;
+            if (orb2) orb2.style.transform = `translate(${-nx * 30}px, ${-ny * 30}px)`;
+
+            document.querySelectorAll('.tilt-card').forEach(card => {
+                const rect = card.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                card.style.setProperty('--mouse-x', `${x}px`);
+                card.style.setProperty('--mouse-y', `${y}px`);
+            });
+        });
+
+        // ==========================================
+        // 2. MOTOR DE DIAPOSITIVAS Y PASOS OCULTOS (MODO EXPOSITOR)
+        // ==========================================
+        let currentSlide = 0;
+        const totalSlides = 5;
+        // Almacena cuántos pasos se han revelado en cada diapositiva (inician todos en 0)
+        const slideProgress = [0, 0, 0, 0, 0];
+        let chartInstance = null;
+        let autoSimInterval = null;
+
+        function getTotalSteps(slideIndex) {
+            const el = document.getElementById(`slide-${slideIndex}`);
+            return parseInt(el.getAttribute('data-total-steps') || '0', 10);
+        }
+
+        // Sincroniza el estado visual de los pasos de una diapositiva
+        function renderSlideSteps(slideIndex) {
+            const slideEl = document.getElementById(`slide-${slideIndex}`);
+            const revealedCount = slideProgress[slideIndex];
+            const steps = slideEl.querySelectorAll('.presenter-step');
+
+            steps.forEach(stepEl => {
+                const stepNum = parseInt(stepEl.getAttribute('data-step'), 10);
+                if (stepNum <= revealedCount) {
+                    stepEl.classList.add('is-revealed');
+                } else {
+                    stepEl.classList.remove('is-revealed');
+                }
+            });
+
+            // Si estamos en la Diapositiva 2 (Gráfica), sincronizar las capas de Chart.js
+            if (slideIndex === 1 && chartInstance) {
+                syncChartLayers(revealedCount);
+            }
+        }
+
+        // Avanzar: revela el siguiente paso oculto o cambia a la siguiente diapositiva
+        function stepForward() {
+            const maxSteps = getTotalSteps(currentSlide);
+            if (slideProgress[currentSlide] < maxSteps) {
+                slideProgress[currentSlide]++;
+                renderSlideSteps(currentSlide);
+                updateUIControls();
+            } else if (currentSlide < totalSlides - 1) {
+                goToSlide(currentSlide + 1);
+            } else {
+                // Reiniciar presentación desde cero
+                for (let i = 0; i < totalSlides; i++) slideProgress[i] = 0;
+                goToSlide(0);
+            }
+        }
+
+        // Retroceder: oculta el último paso revelado o regresa a la diapositiva anterior
+        function stepBackward() {
+            if (slideProgress[currentSlide] > 0) {
+                slideProgress[currentSlide]--;
+                renderSlideSteps(currentSlide);
+                updateUIControls();
+            } else if (currentSlide > 0) {
+                goToSlide(currentSlide - 1);
+            }
+        }
+
+        function goToSlide(index) {
+            if (index < 0 || index >= totalSlides) return;
+            stopAutoSimulation();
+
+            const prevSlideEl = document.getElementById(`slide-${currentSlide}`);
+            const nextSlideEl = document.getElementById(`slide-${index}`);
+
+            prevSlideEl.classList.remove('active', 'active-prev');
+            const isForward = index >= currentSlide;
+            currentSlide = index;
+
+            nextSlideEl.classList.remove('active', 'active-prev');
+            void nextSlideEl.offsetWidth;
+            nextSlideEl.classList.add(isForward ? 'active' : 'active-prev');
+
+            renderSlideSteps(currentSlide);
+            updateUIControls();
+
+            if (currentSlide === 1) {
+                setTimeout(() => {
+                    if (!chartInstance) {
+                        initPopulationChart();
+                    } else {
+                        chartInstance.resize();
+                        syncChartLayers(slideProgress[1]);
+                    }
+                }, 60);
+            }
+        }
+
+        function updateUIControls() {
+            const maxSteps = getTotalSteps(currentSlide);
+            const revealed = slideProgress[currentSlide];
+            const remaining = maxSteps - revealed;
+
+            // Contador diapositiva
+            document.getElementById('slideCounter').textContent = `${currentSlide + 1}/${totalSlides}`;
+
+            // Badge de pasos ocultos restantes
+            const stepsBadge = document.getElementById('stepsBadge');
+            if (remaining > 0) {
+                stepsBadge.textContent = `Pasos ocultos: ${remaining}`;
+                stepsBadge.className = 'px-2.5 py-1 rounded-lg bg-[#8b5cf6]/20 border border-[#8b5cf6]/50 text-violet-300 text-xs font-bold';
+            } else {
+                stepsBadge.textContent = `Diapositiva completa`;
+                stepsBadge.className = 'px-2.5 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/40 text-emerald-300 text-xs font-bold';
+            }
+
+            // Barra de progreso global (diapositivas + pasos)
+            const slideFraction = (currentSlide + (maxSteps > 0 ? revealed / maxSteps : 1)) / totalSlides;
+            document.getElementById('progressBar').style.width = `${Math.max(8, slideFraction * 100)}%`;
+
+            // Botón Anterior
+            document.getElementById('prevBtn').disabled = (currentSlide === 0 && revealed === 0);
+
+            // Etiqueta dinámica del botón Siguiente
+            const nextBtnLabel = document.getElementById('nextBtnLabel');
+            if (remaining > 0) {
+                nextBtnLabel.textContent = `Siguiente Paso`;
+            } else if (currentSlide < totalSlides - 1) {
+                nextBtnLabel.textContent = `Siguiente Diapositiva`;
+            } else {
+                nextBtnLabel.textContent = `Reiniciar`;
+            }
+
+            // Pills superiores
+            const pills = document.querySelectorAll('.pill-btn');
+            pills.forEach((pill, idx) => {
+                if (idx === currentSlide) {
+                    pill.className = 'pill-btn px-2.5 py-1 rounded-lg text-xs font-bold transition-all bg-[#00f5d4]/20 text-[#00f5d4] border border-[#00f5d4]/50';
+                } else {
+                    pill.className = 'pill-btn px-2.5 py-1 rounded-lg text-xs font-medium transition-all text-slate-400 hover:text-slate-200 border border-transparent';
+                }
+            });
+
+            if (window.lucide) lucide.createIcons();
+        }
+
+        // Teclado: Espacio y Flecha Derecha revelan paso; Flecha Izquierda retrocede
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowRight' || e.key === ' ') {
+                if (document.activeElement.tagName !== 'INPUT') {
+                    e.preventDefault();
+                    stepForward();
+                }
+            } else if (e.key === 'ArrowLeft') {
+                if (document.activeElement.tagName !== 'INPUT') {
+                    e.preventDefault();
+                    stepBackward();
+                }
+            }
+        });
+
+        // Clic en el fondo del escenario avanza paso (sin interferir con botones o slider)
+        document.getElementById('stageArea').addEventListener('click', (e) => {
+            if (e.target.closest('button') || e.target.closest('input') || e.target.closest('canvas')) {
+                return;
+            }
+            stepForward();
+        });
+
+        function toggleFullscreen() {
+            if (!document.fullscreenElement) {
+                document.documentElement.requestFullscreen().catch(() => {});
+            } else {
+                document.exitFullscreen().catch(() => {});
+            }
+        }
+
+        // ==========================================
+        // 3. GRÁFICA INTERACTIVA CON REVELACIÓN POR CAPAS (INCISO A)
+        // ==========================================
+        function calcPopulation(t) {
+            return 100000 / (100 + 900 * Math.exp(-t));
+        }
+
+        function initPopulationChart() {
+            const ctx = document.getElementById('populationChart').getContext('2d');
+            
+            const tValues = [];
+            const pValues = [];
+            for (let t = 0; t <= 10.01; t += 0.2) {
+                tValues.push(Number(t.toFixed(1)));
+                pValues.push(calcPopulation(t));
+            }
+
+            chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: tValues,
+                    datasets: [
+                        {
+                            // Dataset 0: Punto Inicial (0, 100) -> Paso 1
+                            label: 'Inicio (0, 100)',
+                            data: [{ x: 0, y: 100 }],
+                            type: 'scatter',
+                            backgroundColor: '#00f5d4',
+                            borderColor: '#ffffff',
+                            borderWidth: 2,
+                            pointRadius: 7,
+                            hidden: true
+                        },
+                        {
+                            // Dataset 1: Curva Logística P(t) -> Paso 2
+                            label: 'P(t)',
+                            data: pValues,
+                            borderColor: '#00f5d4',
+                            backgroundColor: 'rgba(0, 245, 212, 0.12)',
+                            borderWidth: 3,
+                            fill: true,
+                            tension: 0.35,
+                            pointRadius: 0,
+                            hidden: true
+                        },
+                        {
+                            // Dataset 2: Intersección Objetivo (4.394, 900) -> Paso 3
+                            label: 'Cruce (4.394, 900)',
+                            data: [{ x: 4.3944, y: 900 }],
+                            type: 'scatter',
+                            backgroundColor: 'rgba(245, 158, 11, 0.4)',
+                            borderColor: '#f59e0b',
+                            borderWidth: 2.5,
+                            pointRadius: 12,
+                            hidden: true
+                        },
+                        {
+                            // Dataset 3: Marcador dinámico del Slider
+                            label: 'Explorador (t, P(t))',
+                            data: [{ x: 0, y: 100 }],
+                            type: 'scatter',
+                            backgroundColor: '#f59e0b',
+                            borderColor: '#ffffff',
+                            borderWidth: 2,
+                            pointRadius: 6,
+                            hidden: true
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    animation: { duration: 600, easing: 'easeOutQuart' },
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            min: 0,
+                            max: 10,
+                            title: {
+                                display: true,
+                                text: 't (años)',
+                                color: '#94a3b8',
+                                font: { family: 'Inter', size: 12, weight: '600' }
+                            },
+                            grid: { color: 'rgba(148, 163, 184, 0.1)' },
+                            ticks: { color: '#94a3b8' }
+                        },
+                        y: {
+                            min: 0,
+                            max: 1100,
+                            title: {
+                                display: true,
+                                text: 'P(t)',
+                                color: '#94a3b8',
+                                font: { family: 'Inter', size: 12, weight: '600' }
+                            },
+                            grid: { color: 'rgba(148, 163, 184, 0.1)' },
+                            ticks: { color: '#94a3b8' }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            labels: { color: '#e2e8f0', font: { family: 'Inter', size: 11 } }
+                        },
+                        tooltip: {
+                            backgroundColor: 'rgba(4, 8, 18, 0.92)',
+                            titleColor: '#00f5d4',
+                            bodyColor: '#f8fafc',
+                            borderColor: 'rgba(0, 245, 212, 0.4)',
+                            borderWidth: 1,
+                            callbacks: {
+                                label: function(context) {
+                                    const x = Number(context.parsed.x).toFixed(3);
+                                    const y = Number(context.parsed.y).toFixed(1);
+                                    return `t = ${x} | P(t) = ${y}`;
+                                }
+                            }
+                        },
+                        annotation: {
+                            annotations: {
+                                asymptoteLine: {
+                                    display: false,
+                                    type: 'line',
+                                    yMin: 1000,
+                                    yMax: 1000,
+                                    borderColor: 'rgba(139, 92, 246, 0.85)',
+                                    borderWidth: 2,
+                                    borderDash: [6, 6],
+                                    label: {
+                                        display: true,
+                                        content: 'P = 1000',
+                                        position: 'end',
+                                        backgroundColor: 'rgba(139, 92, 246, 0.9)',
+                                        color: '#fff',
+                                        font: { size: 10, weight: 'bold' }
+                                    }
+                                },
+                                targetLine: {
+                                    display: false,
+                                    type: 'line',
+                                    yMin: 900,
+                                    yMax: 900,
+                                    borderColor: 'rgba(245, 158, 11, 0.85)',
+                                    borderWidth: 2,
+                                    borderDash: [4, 4],
+                                    label: {
+                                        display: true,
+                                        content: 'P = 900',
+                                        position: 'start',
+                                        backgroundColor: 'rgba(245, 158, 11, 0.9)',
+                                        color: '#040812',
+                                        font: { size: 10, weight: 'bold' }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            syncChartLayers(slideProgress[1]);
+        }
+
+        // Sincroniza las capas visibles de la gráfica con el paso actual de la Diapositiva 2
+        function syncChartLayers(stepCount) {
+            if (!chartInstance) return;
+
+            // Paso >= 1: Punto inicial (0, 100) y asíntota P = 1000
+            chartInstance.data.datasets[0].hidden = stepCount < 1;
+            chartInstance.options.plugins.annotation.annotations.asymptoteLine.display = stepCount >= 1;
+
+            // Paso >= 2: Curva logística P(t) y explorador
+            chartInstance.data.datasets[1].hidden = stepCount < 2;
+            chartInstance.data.datasets[3].hidden = stepCount < 2;
+
+            // Paso >= 3: Línea objetivo P = 900 y punto de cruce (4.394, 900)
+            chartInstance.data.datasets[2].hidden = stepCount < 3;
+            chartInstance.options.plugins.annotation.annotations.targetLine.display = stepCount >= 3;
+
+            chartInstance.update();
+        }
+
+        const timeSlider = document.getElementById('timeSlider');
+        timeSlider.addEventListener('input', (e) => {
+            stopAutoSimulation();
+            updateSlider(parseFloat(e.target.value));
+        });
+
+        function updateSlider(tVal) {
+            timeSlider.value = tVal;
+            const pVal = calcPopulation(tVal);
+            
+            document.getElementById('sliderTimeDisplay').textContent = `t = ${tVal.toFixed(2)} años`;
+            document.getElementById('sliderPopDisplay').textContent = `P(t) = ${pVal.toFixed(1)}`;
+
+            if (chartInstance) {
+                chartInstance.data.datasets[3].data = [{ x: tVal, y: pVal }];
+                chartInstance.update('none');
+            }
+        }
+
+        function toggleAutoSimulation() {
+            if (autoSimInterval) {
+                stopAutoSimulation();
+                return;
+            }
+            // Asegurar que la curva esté visible al simular
+            if (slideProgress[1] < 2) {
+                slideProgress[1] = 2;
+                renderSlideSteps(1);
+                updateUIControls();
+            }
+
+            let tSim = 0;
+            updateSlider(0);
+            const btn = document.getElementById('autoSimBtn');
+            btn.innerHTML = `<i data-lucide="square" class="w-3.5 h-3.5"></i><span>Detener</span>`;
+            if (window.lucide) lucide.createIcons();
+
+            autoSimInterval = setInterval(() => {
+                tSim += 0.06;
+                if (tSim >= 4.3944) {
+                    updateSlider(4.39);
+                    stopAutoSimulation();
+                } else {
+                    updateSlider(tSim);
+                }
+            }, 35);
+        }
+
+        function stopAutoSimulation() {
+            if (autoSimInterval) {
+                clearInterval(autoSimInterval);
+                autoSimInterval = null;
+                const btn = document.getElementById('autoSimBtn');
+                if (btn) {
+                    btn.innerHTML = `<i data-lucide="play" class="w-3.5 h-3.5"></i><span>Simular Crecimiento</span>`;
+                    if (window.lucide) lucide.createIcons();
+                }
+            }
+        }
+
+        // ==========================================
+        // INICIALIZACIÓN GLOBAL
+        // ==========================================
+        window.onload = function () {
+            renderMathInElement(document.body, {
+                delimiters: [
+                    { left: '$$', right: '$$', display: true },
+                    { left: '$', right: '$', display: false }
+                ],
+                throwOnError: false
+            });
+            updateUIControls();
+            animateBioBackground();
+        };
+    </script>
+</body>
+</html>
